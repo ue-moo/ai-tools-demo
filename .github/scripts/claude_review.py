@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Claude PR Review Script for GitHub Actions."""
 
-import argparse
 import os
 import sys
 import urllib.request
@@ -44,28 +43,41 @@ def call_claude_api(prompt: str) -> str:
         return f"Error: {str(e)}"
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Claude PR Review")
-    parser.add_argument("--title", required=True, help="PR title")
-    parser.add_argument("--body", default="", help="PR description")
-    parser.add_argument("--diff", required=True, help="Git diff")
-    parser.add_argument("--files", required=True, help="Changed files")
-    args = parser.parse_args()
+def read_file(path: str) -> str:
+    """Read file contents, return empty string if not found."""
+    try:
+        with open(path, "r") as f:
+            return f.read()
+    except FileNotFoundError:
+        return ""
 
-    prompt = f"""You are a code reviewer. Please review this Pull Request and provide constructive feedback.
+
+def main():
+    # Read from environment variables and files
+    title = os.environ.get("PR_TITLE", "No title")
+    body = os.environ.get("PR_BODY", "")
+    diff = read_file("/tmp/pr_diff.txt")
+    files = read_file("/tmp/changed_files.txt")
+
+    # Truncate diff if too long
+    max_diff_length = 50000
+    if len(diff) > max_diff_length:
+        diff = diff[:max_diff_length] + "\n... (truncated)"
+
+    prompt = f"""You are a code reviewer. Please review this Pull Request and provide constructive feedback in Japanese.
 
 ## PR Title
-{args.title}
+{title}
 
 ## PR Description
-{args.body if args.body else "No description provided"}
+{body if body else "No description provided"}
 
 ## Changed Files
-{args.files}
+{files}
 
 ## Diff
 ```diff
-{args.diff[:50000]}
+{diff}
 ```
 
 ## Review Guidelines
@@ -77,7 +89,7 @@ Please review the code for:
 5. **Documentation**: Missing or unclear documentation
 
 ## Response Format
-Please respond in the following format:
+Please respond in the following format (in Japanese):
 
 ### Summary
 Brief summary of the changes.
@@ -92,7 +104,7 @@ Brief summary of the changes.
 Your overall assessment (Approve / Request Changes / Comment)
 
 ---
-Reviewed by Claude
+🤖 Reviewed by Claude
 """
 
     review = call_claude_api(prompt)
