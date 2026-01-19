@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Claude PR Review Script - Optimized for low cost."""
+"""Claude PR Review Script."""
 
 import os
 import urllib.request
@@ -8,7 +8,7 @@ import json
 
 
 def call_claude_api(prompt: str) -> str:
-    """Call Claude API with Haiku model for cost efficiency."""
+    """Call Claude API."""
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         return "Error: ANTHROPIC_API_KEY not set"
@@ -20,8 +20,8 @@ def call_claude_api(prompt: str) -> str:
         "anthropic-version": "2023-06-01",
     }
     data = {
-        "model": "claude-3-haiku-20240307",  # Haiku: ~12x cheaper than Sonnet
-        "max_tokens": 1024,  # Reduced from 4096
+        "model": "claude-sonnet-4-20250514",
+        "max_tokens": 2048,
         "messages": [{"role": "user", "content": prompt}],
     }
 
@@ -33,7 +33,7 @@ def call_claude_api(prompt: str) -> str:
     )
 
     try:
-        with urllib.request.urlopen(req, timeout=60) as response:
+        with urllib.request.urlopen(req, timeout=120) as response:
             result = json.loads(response.read().decode("utf-8"))
             return result["content"][0]["text"]
     except urllib.error.HTTPError as e:
@@ -42,7 +42,7 @@ def call_claude_api(prompt: str) -> str:
         return f"Error: {str(e)}"
 
 
-def read_file(path: str, max_chars: int = 10000) -> str:
+def read_file(path: str, max_chars: int = 15000) -> str:
     """Read file contents with character limit."""
     try:
         with open(path, "r") as f:
@@ -56,11 +56,11 @@ def read_file(path: str, max_chars: int = 10000) -> str:
 
 def main():
     title = os.environ.get("PR_TITLE", "")
-    body = os.environ.get("PR_BODY", "")[:500]  # Limit body
-    diff = read_file("/tmp/pr_diff.txt", 10000)  # Reduced from 50000
+    body = os.environ.get("PR_BODY", "")[:1000]
+    diff = read_file("/tmp/pr_diff.txt", 15000)
     files = read_file("/tmp/changed_files.txt", 500)
 
-    prompt = f"""PRをレビューして簡潔にフィードバックしてください。
+    prompt = f"""あなたは厳格なコードレビュアーです。このPRを批判的にレビューしてください。
 
 ## PR: {title}
 {body}
@@ -73,22 +73,33 @@ def main():
 {diff}
 ```
 
-以下の形式で回答（日本語、簡潔に）:
+## レビュー観点（必ず全てチェック）
+1. **バグ**: ロジックエラー、off-by-oneエラー、エッジケースの未処理
+2. **セキュリティ**: コマンドインジェクション、入力検証の欠如
+3. **例外処理**: 空リスト、null、ゼロ除算などの未処理
+4. **副作用**: 引数の意図しない変更
+5. **パフォーマンス**: 非効率なアルゴリズム
+
+## 回答形式（日本語）
 
 ### 概要
-1-2文で変更内容を要約
+変更内容を1-2文で要約
 
-### 良い点
-- 箇条書き
+### 検出された問題
+問題がある場合は具体的に指摘:
+- 🔴 **重大**: [問題の説明と修正案]
+- 🟡 **警告**: [問題の説明と修正案]
+- 🔵 **提案**: [改善案]
 
-### 改善提案
-- 箇条書き（なければ「特になし」）
+問題がなければ「問題なし」
 
 ### 判定
-Approve / Request Changes / Comment
+- **Approve**: 問題なし
+- **Request Changes**: 重大な問題あり（マージ前に修正必須）
+- **Comment**: 軽微な問題あり
 
 ---
-🤖 Claude Haiku Review
+🤖 Claude Sonnet Review
 """
 
     print(call_claude_api(prompt))
