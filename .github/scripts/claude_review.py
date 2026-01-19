@@ -20,7 +20,7 @@ def call_claude_api(prompt: str) -> str:
         "anthropic-version": "2023-06-01",
     }
     data = {
-        "model": "claude-3-5-haiku-20241022",  # Haiku: ~12x cheaper than Sonnet
+        "model": "claude-3-haiku-20240307",  # Haiku: ~12x cheaper than Sonnet
         "max_tokens": 1024,  # Reduced from 4096
         "messages": [{"role": "user", "content": prompt}],
     }
