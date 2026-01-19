@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
-"""Claude PR Review Script for GitHub Actions."""
+"""Claude PR Review Script - Optimized for low cost."""
 
 import os
-import sys
 import urllib.request
 import urllib.error
 import json
 
 
 def call_claude_api(prompt: str) -> str:
-    """Call Claude API and return the response."""
+    """Call Claude API with Haiku model for cost efficiency."""
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         return "Error: ANTHROPIC_API_KEY not set"
@@ -21,8 +20,8 @@ def call_claude_api(prompt: str) -> str:
         "anthropic-version": "2023-06-01",
     }
     data = {
-        "model": "claude-sonnet-4-20250514",
-        "max_tokens": 4096,
+        "model": "claude-3-5-haiku-20241022",  # Haiku: ~12x cheaper than Sonnet
+        "max_tokens": 1024,  # Reduced from 4096
         "messages": [{"role": "user", "content": prompt}],
     }
 
@@ -34,7 +33,7 @@ def call_claude_api(prompt: str) -> str:
     )
 
     try:
-        with urllib.request.urlopen(req, timeout=120) as response:
+        with urllib.request.urlopen(req, timeout=60) as response:
             result = json.loads(response.read().decode("utf-8"))
             return result["content"][0]["text"]
     except urllib.error.HTTPError as e:
@@ -43,72 +42,56 @@ def call_claude_api(prompt: str) -> str:
         return f"Error: {str(e)}"
 
 
-def read_file(path: str) -> str:
-    """Read file contents, return empty string if not found."""
+def read_file(path: str, max_chars: int = 10000) -> str:
+    """Read file contents with character limit."""
     try:
         with open(path, "r") as f:
-            return f.read()
+            content = f.read()
+            if len(content) > max_chars:
+                return content[:max_chars] + "\n...(truncated)"
+            return content
     except FileNotFoundError:
         return ""
 
 
 def main():
-    # Read from environment variables and files
-    title = os.environ.get("PR_TITLE", "No title")
-    body = os.environ.get("PR_BODY", "")
-    diff = read_file("/tmp/pr_diff.txt")
-    files = read_file("/tmp/changed_files.txt")
+    title = os.environ.get("PR_TITLE", "")
+    body = os.environ.get("PR_BODY", "")[:500]  # Limit body
+    diff = read_file("/tmp/pr_diff.txt", 10000)  # Reduced from 50000
+    files = read_file("/tmp/changed_files.txt", 500)
 
-    # Truncate diff if too long
-    max_diff_length = 50000
-    if len(diff) > max_diff_length:
-        diff = diff[:max_diff_length] + "\n... (truncated)"
+    prompt = f"""PRをレビューして簡潔にフィードバックしてください。
 
-    prompt = f"""You are a code reviewer. Please review this Pull Request and provide constructive feedback in Japanese.
+## PR: {title}
+{body}
 
-## PR Title
-{title}
-
-## PR Description
-{body if body else "No description provided"}
-
-## Changed Files
+## 変更ファイル
 {files}
 
 ## Diff
-```diff
+```
 {diff}
 ```
 
-## Review Guidelines
-Please review the code for:
-1. **Code Quality**: Readability, maintainability, best practices
-2. **Bugs**: Potential bugs or edge cases
-3. **Security**: Security vulnerabilities
-4. **Performance**: Performance issues
-5. **Documentation**: Missing or unclear documentation
+以下の形式で回答（日本語、簡潔に）:
 
-## Response Format
-Please respond in the following format (in Japanese):
+### 概要
+1-2文で変更内容を要約
 
-### Summary
-Brief summary of the changes.
+### 良い点
+- 箇条書き
 
-### Good Points
-- List of positive aspects
+### 改善提案
+- 箇条書き（なければ「特になし」）
 
-### Suggestions
-- List of improvement suggestions (if any)
-
-### Overall
-Your overall assessment (Approve / Request Changes / Comment)
+### 判定
+Approve / Request Changes / Comment
 
 ---
-🤖 Reviewed by Claude
+🤖 Claude Haiku Review
 """
 
-    review = call_claude_api(prompt)
-    print(review)
+    print(call_claude_api(prompt))
 
 
 if __name__ == "__main__":
