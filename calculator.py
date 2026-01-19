@@ -11,6 +11,39 @@ def subtract(a: float, b: float) -> float:
     return a - b
 
 
+def multiply(a: float, b: float) -> float:
+    """Multiply two numbers and return the result.
+
+    Args:
+        a: First number.
+        b: Second number.
+
+    Returns:
+        The product of a and b.
+    """
+    return a * b
+
+
+def divide(a: float, b: float) -> float:
+    """Divide a by b and return the result.
+
+    Args:
+        a: Dividend (numerator).
+        b: Divisor (denominator).
+
+    Returns:
+        The quotient of a divided by b.
+
+    Raises:
+        ValueError: If b is zero.
+    """
+    if b == 0:
+        raise ValueError("Cannot divide by zero")
+    return a / b
+
+
 if __name__ == "__main__":
     print(f"2 + 3 = {add(2, 3)}")
     print(f"5 - 2 = {subtract(5, 2)}")
+    print(f"4 * 3 = {multiply(4, 3)}")
+    print(f"10 / 2 = {divide(10, 2)}")
