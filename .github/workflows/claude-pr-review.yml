@@ -10,7 +10,6 @@ permissions:
 
 jobs:
   review:
-    # Only run on PR comments containing /claude-review
     if: |
       github.event.issue.pull_request &&
       contains(github.event.comment.body, '/claude-review')
@@ -31,18 +30,27 @@ jobs:
             core.setOutput('title', pr.data.title);
             core.setOutput('body', pr.data.body || '');
 
-      - name: Checkout code
+      - name: Checkout main (for review script)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main-branch
+
+      - name: Checkout PR branch
         uses: actions/checkout@v4
         with:
           ref: ${{ steps.pr.outputs.head_ref }}
           fetch-depth: 0
+          path: pr-branch
 
       - name: Get PR diff
+        working-directory: pr-branch
         run: |
           git fetch origin ${{ steps.pr.outputs.base_ref }}
           git diff origin/${{ steps.pr.outputs.base_ref }}...HEAD > /tmp/pr_diff.txt
 
       - name: Get changed files
+        working-directory: pr-branch
         run: |
           git diff --name-only origin/${{ steps.pr.outputs.base_ref }}...HEAD > /tmp/changed_files.txt
 
@@ -51,7 +59,7 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           PR_TITLE: ${{ steps.pr.outputs.title }}
           PR_BODY: ${{ steps.pr.outputs.body }}
-        run: python3 .github/scripts/claude_review.py > /tmp/review.txt
+        run: python3 main-branch/.github/scripts/claude_review.py > /tmp/review.txt
 
       - name: Post review comment
         uses: actions/github-script@v7
