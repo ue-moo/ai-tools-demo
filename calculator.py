@@ -42,6 +42,19 @@ def divide(a: float, b: float) -> float:
     return a / b
 
 
+def power(base: float, exponent: float) -> float:
+    """Raise base to the power of exponent.
+
+    Args:
+        base: The base number.
+        exponent: The exponent.
+
+    Returns:
+        base raised to the power of exponent.
+    """
+    return base ** exponent
+
+
 if __name__ == "__main__":
     print(f"2 + 3 = {add(2, 3)}")
     print(f"5 - 2 = {subtract(5, 2)}")
